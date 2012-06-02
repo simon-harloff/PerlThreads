@@ -5,8 +5,9 @@ use warnings;
 
 use Config;
 use threads;
+use threads::shared;
 
-my $pool;
+my %threadPool : shared;
 
 sub new 
 {
@@ -15,76 +16,74 @@ sub new
    my $class = shift;
    
    my $self = {
-      poolSize => 0,
-      manager => sub {},
+      poolSize       => 0,
+      threadCount    => 0,
+      manager        => sub {},
       @_
    };
 
    bless $self, $class;
-   
-   $self->_Init();
+   $self->_init();
+
    return $self;
 }
 
-sub _Init
+sub DESTROY { my $self = shift; $self->destroy(); }
+sub destroy
 {
-   log_msg("ThreadPoolManager::INIT");
-
+   log_msg("ThreadPoolManager::DESTROY");
    my $self = shift;
-   print "Settings ...\n";
-   foreach (keys(%$self)) {
-      print "$_ -> $self->{$_}\n";
-   }
-
-   print "Starting Thread Manager ....\n";
-   $self->{manager}();
 }
 
-sub AddThread
+sub _init
 {
-   log_msg("ThreadPoolManager::AddThread");
-
    my $self = shift;
-   my $threadMethod = shift or return;
-   my @threadArguments = (\&OnComplete, @_);
 
-   my $worker = threads->create($threadMethod, @threadArguments);
-   $pool->{$worker->tid} = 1;
-   $worker->detach();
+   $self->{manager}->($self);
 }
 
-sub OnComplete
+sub threadCount
 {
-   my $tid = shift;
-   my $data = @_;
-
-   print $tid;
-
-   $pool->{$tid} = 0;
-   delete $pool->{$tid};
-}
-
-sub ThreadCount
-{
-   #log_msg("ThreadPoolManager::ThreadCount");
+   my $self = shift;
 
    my $count = 0;
-   $count++ foreach (keys(%$pool));
+   {
+      lock(%threadPool);
+      foreach (keys(%threadPool))
+      {
+         $count++ if $threadPool{$_} == 1;
+      }
+   }
+
    return $count;
 }
 
-sub PoolSize
+sub poolSize
 {
-   #log_msg("ThreadPoolManager::PoolSize");
-
    my $self = shift;
    return $self->{poolSize};
 }
 
-sub DESTROY
+sub registerThread
 {
-   log_msg("ThreadPoolManager::DESTROY");
    my $self = shift;
+   my $threadMethod = shift or return;
+   my @threadArgs = ( sub { my $tid = shift; $self->unregisterThread($tid); }, @_);
+
+   my $thread = threads->create($threadMethod, @threadArgs);
+   $threadPool{$thread->tid} = 1;
+   $thread->detach();
+}
+
+sub unregisterThread
+{
+   log_msg("ThreadPoolManager::unregisterThread");
+
+   my $self = shift;
+   my $tid = shift;
+
+   lock(%threadPool);
+   $threadPool{$tid} = 0 if (exists($threadPool{$tid}));
 }
 
 sub log_msg
