@@ -23,7 +23,7 @@ manager so the managing method can be notified of the progress.
 
 **In order to run the example:**
 
-**Note:** This has only been testing on Mac OS X (10.7) with Perl 5.12.3.
+**Note:** This has only been tested on Mac OS X (10.7) with Perl 5.12.3.
 
 `perl threads.pl`
 
