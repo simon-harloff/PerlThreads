@@ -8,17 +8,17 @@ use threads;
 use threads::shared;
 
 my %threadPool : shared;
+my @threadData : shared;
 
 sub new 
 {
-   log_msg("ThreadPoolManager::NEW");
-
    my $class = shift;
    
    my $self = {
       poolSize       => 0,
       threadCount    => 0,
       manager        => sub {},
+      onThreadDone   => sub {},
       @_
    };
 
@@ -31,7 +31,6 @@ sub new
 sub DESTROY { my $self = shift; $self->destroy(); }
 sub destroy
 {
-   log_msg("ThreadPoolManager::DESTROY");
    my $self = shift;
 }
 
@@ -42,7 +41,7 @@ sub _init
    $self->{manager}->($self);
 }
 
-sub threadCount
+sub getThreadCount
 {
    my $self = shift;
 
@@ -58,17 +57,28 @@ sub threadCount
    return $count;
 }
 
-sub poolSize
+sub getPoolSize
 {
    my $self = shift;
    return $self->{poolSize};
+}
+
+sub getThreadData
+{
+   my @data = ();
+   {
+      lock(@threadData);
+      @data = @threadData;
+      @threadData = ();
+   }
+   return @data;
 }
 
 sub registerThread
 {
    my $self = shift;
    my $threadMethod = shift or return;
-   my @threadArgs = ( sub { my $tid = shift; $self->unregisterThread($tid); }, @_);
+   my @threadArgs = ( sub { my $tid = shift; my @data = (@_); $self->unregisterThread($tid, @data); }, @_);
 
    my $thread = threads->create($threadMethod, @threadArgs);
    $threadPool{$thread->tid} = 1;
@@ -77,19 +87,21 @@ sub registerThread
 
 sub unregisterThread
 {
-   log_msg("ThreadPoolManager::unregisterThread");
-
    my $self = shift;
-   my $tid = shift;
+   my $tid = shift or return;
+   my @data = (@_);
 
-   lock(%threadPool);
-   $threadPool{$tid} = 0 if (exists($threadPool{$tid}));
-}
+   {
+      lock(%threadPool);
+      $threadPool{$tid} = 0 if (exists($threadPool{$tid}));
+   }
 
-sub log_msg
-{
-   my $msg = shift or return;
-   print "[LOG] $msg\n";
+   {
+      lock(@threadData);
+      push(@threadData, @data);
+   }
+
+   $self->{onThreadDone}->($self);
 }
 
 1;
