@@ -1,7 +1,7 @@
 PerlThreads
 ===========
 
-_NTB: Check spelling for submitting readme :S_
+_NTB: Check spelling before submitting readme :S_
 
 This is me playing around with Perl threading.
 
