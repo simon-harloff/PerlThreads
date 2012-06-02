@@ -23,13 +23,17 @@ manager so the managing method can be notified of the progress.
 
 **In order to run the example:**
 
+**Note:** This has only been testing on Mac OS X (10.7) with Perl 5.12.3.
+
 `perl threads.pl`
 
 This assumes that you have Perl threads installed as part of your Perl compilation. You can check if you 
 have threads available with the following code:
 
-`use Config;`
-`$Config{useithreads} or die('Recompile Perl with threads to run this program.');`
+`
+use Config;
+$Config{useithreads} or die('Recompile Perl with threads to run this program.');
+`
 
 If you get the die("...") part of th perl program that congratulations you do **NOT** have threads. :P
 
@@ -39,6 +43,10 @@ For now look at **threads.pl** for some idea on how to use `ThreadPoolManager.pm
 
 TODO
 
-** Client code requirements **
+**Client code requirements**
 
-** ThreadPoolManager package notes **
+**ThreadPoolManager package notes**
+
+#### Disclaimer
+
+All code is provided "as is". I do not accept any responsibibility for any damage caused by the execution or use of the provided code.
