@@ -1,48 +1,44 @@
 use strict;
 use warnings;
 
-use Config;
-use threads;
-use threads::shared;
+use ThreadPoolManager;
 
-my %threadPool : shared;
-my $threadPoolSize = 1;
-my $threadCount = 0;
-
-
-$| = 0;
+local $| = 0;
 
 Main();
 
 sub Main
 {
-   log_msg("Starting ...");
-   while (1) {
-      $threadCount = 0;
-      print "Active Threads: ";
-      foreach (keys(%threadPool)) {
-         print " $_ -> $threadPool{$_}, ";
-         $threadCount++ if ($threadPool{$_});
-      }
-      print "\n";
 
-      while ($threadCount < $threadPoolSize) {
-         log_msg("Spawning worker thread ...");
-         my $thread = threads->create(\&Worker);
-         $threadPool{$thread->tid} = 1;
-         $thread->detach();
-         $threadCount++;
+   my $tpm = new ThreadPoolManager(
+      poolSize => 5,
+      manager  => \&ManageThreads
+   );
+
+}
+
+sub ManageThreads
+{
+   log_msg("ManageThreads ...");
+   my $tpm = shift;
+
+   while (1) {
+      log_msg("Current Active Threads: " . $tpm->threadCount());
+      while ($tpm->threadCount() < $tpm->poolSize()) {
+         $tpm->registerThread(\&Worker);
       }
-      sleep 5;
+      sleep 1;
    }
 }
 
 sub Worker
 {
+   my $cb = shift;
    log_msg("\t\t Working ...");
    sleep 3;
    log_msg("\t\t Done ...");
-   $threadPool{threads->self->tid} = 0;
+   
+   $cb->(threads->self->tid);
 }
 
 sub log_msg
